@@ -1,0 +1,181 @@
+<script type="text/javascript">
+  // Persistent Language Storage
+  let isLanguageBeingRestored = false;
+
+  // Save language preference when hash changes
+  window.addEventListener("hashchange", function () {
+    if (location.hash.startsWith("#googtrans") && !isLanguageBeingRestored) {
+      localStorage.setItem("googleTranslateHash", location.hash);
+    }
+  });
+
+  function googleTranslateElementInit() {
+    // Clear previous widget if exists
+    const container = document.getElementById("google_translate_element");
+    if (container) container.innerHTML = "";
+
+    new google.translate.TranslateElement(
+      {
+        includedLanguages: "en,fr,it",
+        layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+        autoDisplay: false,
+      },
+      "google_translate_element"
+    );
+  }
+
+  function reinitializeGoogleTranslate() {
+    // Remove existing script and reload
+    const oldScript = document.querySelector(
+      'script[src*="translate.google.com"]'
+    );
+    if (oldScript) oldScript.remove();
+
+    const script = document.createElement("script");
+    script.src =
+      "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en";
+    document.body.appendChild(script);
+  }
+
+  // Restore language when page loads or is restored from bfcache
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted || performance.navigation.type === 2) {
+      isLanguageBeingRestored = true;
+      const savedHash = localStorage.getItem("googleTranslateHash");
+      if (savedHash) {
+        window.location.hash = savedHash;
+      }
+      reinitializeGoogleTranslate();
+      setTimeout(() => (isLanguageBeingRestored = false), 1000);
+    }
+  });
+
+  function updateLanguageFormat() {
+    let lastProcessedState = ""; // Track last processed state
+
+    const observer = new MutationObserver((mutations) => {
+      const translateIframe = document.getElementsByClassName(
+        "VIpgJd-ZVi9od-xl07Ob-OEVmcd"
+      )[0];
+      const selectedText = document.querySelector(
+        ".VIpgJd-ZVi9od-xl07Ob-lTBxed span"
+      );
+
+      // Create a state string to compare changes
+      const currentState =
+        selectedText?.textContent +
+        "_" +
+        (translateIframe?.style.display || "");
+
+      // Only process if state has changed
+      if (currentState !== lastProcessedState) {
+        lastProcessedState = currentState;
+
+        if (translateIframe && translateIframe.contentWindow) {
+          try {
+            const selectorLinkTag = document.querySelector(
+              ".VIpgJd-ZVi9od-xl07Ob-lTBxed"
+            );
+            selectorLinkTag.addEventListener("click", function (e) {
+              e.preventDefault();
+            });
+
+            const iframeDocument = translateIframe.contentWindow.document;
+
+            // Remove Select Language option from dropdown
+            const selectLanguageOption = iframeDocument.querySelector(
+              ".VIpgJd-ZVi9od-vH1Gmf-ibnC6b-gk6SMd"
+            );
+            if (selectLanguageOption) {
+              selectLanguageOption.remove();
+            }
+
+            const indicators = iframeDocument.querySelectorAll(".indicator");
+            indicators.forEach((indicator) => {
+              indicator.style.display = "none";
+            });
+
+            const dropdownContainer = iframeDocument.querySelector(
+              ".VIpgJd-ZVi9od-vH1Gmf"
+            );
+            dropdownContainer.style.border = "none";
+            dropdownContainer.style.padding = "0px";
+
+            // Update remaining options format
+            const allOptions = iframeDocument.querySelectorAll(
+              ".VIpgJd-ZVi9od-vH1Gmf-ibnC6b"
+            );
+            allOptions.forEach((option) => {
+              const optionDiv = option.querySelector("div");
+              optionDiv.style.backgroundColor = "#f9f9f9";
+              optionDiv.style.color = "black";
+              optionDiv.style.padding = "12px 16px";
+
+              optionDiv.addEventListener("mouseover", () => {
+                optionDiv.style.backgroundColor = "#f1f1f1";
+                optionDiv.style.color = "#31445B";
+              });
+              optionDiv.addEventListener("mouseout", () => {
+                optionDiv.style.backgroundColor = "";
+                optionDiv.style.color = "black";
+              });
+
+              const textSpan = option.querySelector(".text");
+              if (textSpan) {
+                switch (textSpan.textContent) {
+                  case "English":
+                    textSpan.textContent = "EN - English";
+                    break;
+                  case "French":
+                    textSpan.textContent = "FR - French";
+                    break;
+                  case "Italian":
+                    textSpan.textContent = "IT - Italian";
+                    break;
+                }
+              }
+            });
+          } catch (error) {
+            console.log("Error accessing iframe:", error);
+          }
+        }
+
+        // Update the selected language display
+        if (selectedText) {
+          switch (selectedText.textContent) {
+            case "Select Language":
+              selectedText.textContent = "EN";
+              break;
+            case "French":
+              selectedText.textContent = "FR";
+              break;
+            case "English":
+              selectedText.textContent = "EN";
+              break;
+            case "Italian":
+              selectedText.textContent = "IT";
+              break;
+          }
+        }
+
+        const widgetContainer = document.querySelector(
+          "#google_translate_element"
+        );
+        if (widgetContainer) {
+          widgetContainer.style.visibility = "visible";
+        }
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true, // Added to catch more changes
+    });
+  }
+
+  window.addEventListener("load", updateLanguageFormat);
+  document.addEventListener("DOMContentLoaded", updateLanguageFormat);
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit&hl=en"></script>
